@@ -7,6 +7,10 @@ import { In, LessThanOrEqual, MoreThan } from "typeorm";
 let dataSourceInit: Promise<void> | null = null;
 
 const ensureDataSource = async (): Promise<void> => {
+	if (AppDataSource.isInitialized) {
+		return;
+	}
+
 	if (!dataSourceInit) {
 		dataSourceInit = AppDataSource.initialize().then(() => undefined);
 	}
