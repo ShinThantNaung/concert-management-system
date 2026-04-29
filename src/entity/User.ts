@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm";
-import { Ticket } from "./Ticket.ts";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from "typeorm";
+import { Ticket } from "./Ticket.js";
 
+@Index("IDX_user_status_pending", ["status"], { where: "\"status\" = 'PENDING'" })
 @Entity("User")
 export class User {
     @PrimaryGeneratedColumn()
@@ -18,4 +19,7 @@ export class User {
 
     @Column()
     isReserved: boolean=false;
+
+    @Column({ type: "datetime", nullable: true })
+    reservationExpiresAt!: Date | null;
 }

@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
-import { User } from "./User.ts";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, Index } from "typeorm";
+import { User } from "./User.js";
 
+@Index("IDX_ticket_concertId", ["concertId"])
 @Entity("Ticket")
 export class Ticket {
     @PrimaryGeneratedColumn()
