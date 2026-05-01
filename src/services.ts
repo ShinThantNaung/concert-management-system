@@ -4,8 +4,43 @@ import { Ticket } from "./entity/Ticket.ts";
 import { User } from "./entity/User.ts";
 import { In, LessThanOrEqual, MoreThan } from "typeorm";
 import { HttpError } from "./errors/HttpError.ts";
+import * as DTO from "./DTO.ts";
 
 let dataSourceInit: Promise<void> | null = null;
+
+type ConcertResponseDTO = {
+  concertId: number;
+  concertName: string;
+  stock: number;
+  category: "VIP" | "general";
+};
+
+type ReservationResponseDTO = {
+  userId: number;
+  concertId: number;
+  status: "PENDING" | "COMPLETED";
+  isReserved: boolean;
+  quantity: number;
+  reservationExpiresAt: string | null;
+};
+
+const serializeConcert = (concert: Ticket): ConcertResponseDTO => ({
+  concertId: concert.concertId,
+  concertName: concert.concertName,
+  stock: concert.stock,
+  category: concert.category,
+});
+
+const serializeReservation = (reservation: User): ReservationResponseDTO => ({
+  userId: reservation.userId,
+  concertId: reservation.reservedConcertId,
+  status: reservation.status,
+  isReserved: reservation.isReserved,
+  quantity: reservation.quantity ?? 1,
+  reservationExpiresAt: reservation.reservationExpiresAt
+    ? reservation.reservationExpiresAt.toISOString()
+    : null,
+});
 
 const ensureDataSource = async (): Promise<void> => {
   if (AppDataSource.isInitialized) {
@@ -68,7 +103,7 @@ export const getConcerts = async (
   await ensureDataSource();
   const concerts = await AppDataSource.getRepository(Ticket).find();
 
-  res.json(concerts);
+  res.json(concerts.map(serializeConcert));
 };
 
 export const getConcertById = async (
@@ -76,7 +111,8 @@ export const getConcertById = async (
   res: Response,
 ): Promise<void> => {
   await ensureDataSource();
-  const concertId = Number(req.params.id);
+  const idDto: DTO.concertIdDTO = { concertId: Number(req.params.id) };
+  const concertId = idDto.concertId;
 
   if (!Number.isFinite(concertId)) {
     throw new HttpError(400, "Invalid concert id.");
@@ -90,7 +126,7 @@ export const getConcertById = async (
     throw new HttpError(404, "Concert not found.");
   }
 
-  res.json(concert);
+  res.json(serializeConcert(concert));
 };
 
 export const getConcertByName = async (
@@ -99,9 +135,10 @@ export const getConcertByName = async (
 ): Promise<void> => {
   await ensureDataSource();
   const rawName = req.params.name;
-  const concertName = Array.isArray(rawName)
-    ? rawName.join(" ").trim()
-    : rawName?.trim();
+  const nameDto: DTO.concertNameDTO = {
+    name: Array.isArray(rawName) ? rawName.join(" ").trim() : (rawName?.trim() ?? ""),
+  };
+  const concertName = nameDto.name;
 
   if (!concertName) {
     throw new HttpError(400, "Concert name is required.");
@@ -115,7 +152,7 @@ export const getConcertByName = async (
     throw new HttpError(404, "Concert not found.");
   }
 
-  res.json(concert);
+  res.json(serializeConcert(concert));
 };
 
 export const createReservation = async (
@@ -124,9 +161,10 @@ export const createReservation = async (
 ): Promise<void> => {
   await ensureDataSource();
   await releaseExpiredReservations();
-  const userId = Number(req.body?.userId);
-  const concertId = Number(req.body?.concertId);
-  const quantity = Number(req.body?.quantity ?? 1);
+  const payload = req.body as DTO.createReservationDTO;
+  const userId = Number(payload.userId);
+  const concertId = Number(payload.concertId);
+  const quantity = Number(payload.quantity ?? 1);
 
   if (!Number.isFinite(userId) || !Number.isFinite(concertId)) {
     throw new HttpError(400, "userId and concertId are required.");
@@ -207,7 +245,7 @@ export const createReservation = async (
 
     const saved = await userRepo.save(reservation);
     await queryRunner.commitTransaction();
-    res.status(201).json(saved);
+    res.status(201).json(serializeReservation(saved));
   } catch (error) {
     await queryRunner.rollbackTransaction();
     if (!res.headersSent) {
@@ -235,9 +273,10 @@ export const createPurchase = async (
 ): Promise<void> => {
   await ensureDataSource();
   await releaseExpiredReservations();
-  const userId = Number(req.body?.userId);
-  const concertId = Number(req.body?.concertId);
-  const quantity = Number(req.body?.quantity ?? 1);
+  const payload = req.body as DTO.createPurchaseDTO;
+  const userId = Number(payload.userId);
+  const concertId = Number(payload.concertId);
+  const quantity = Number(payload.quantity ?? 1);
 
   if (!Number.isFinite(userId) || !Number.isFinite(concertId)) {
     throw new HttpError(400, "userId and concertId are required.");
@@ -281,7 +320,7 @@ export const createPurchase = async (
 
       const saved = await userRepo.save(reservation);
       await queryRunner.commitTransaction();
-      res.status(201).json(saved);
+      res.status(201).json(serializeReservation(saved));
       return;
     }
 
@@ -317,7 +356,7 @@ export const createPurchase = async (
 
     const saved = await userRepo.save(purchase);
     await queryRunner.commitTransaction();
-    res.status(201).json(saved);
+    res.status(201).json(serializeReservation(saved));
   } catch (error) {
     await queryRunner.rollbackTransaction();
     if (!res.headersSent) {
