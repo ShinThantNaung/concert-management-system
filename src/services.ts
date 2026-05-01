@@ -12,7 +12,11 @@ const ensureDataSource = async (): Promise<void> => {
 	}
 
 	if (!dataSourceInit) {
-		dataSourceInit = AppDataSource.initialize().then(() => undefined);
+		dataSourceInit = AppDataSource.initialize().then(async () => {
+			// Ensure pending migrations are applied so the runtime schema matches entities
+			await AppDataSource.runMigrations();
+			return undefined;
+		});
 	}
 
 	await dataSourceInit;
@@ -119,6 +123,25 @@ export const createReservation = async (req: Request, res: Response): Promise<vo
 	await queryRunner.connect();
 	await queryRunner.startTransaction();
 	try {
+		const isReserved = await AppDataSource.getRepository(User).exists({
+			where: { userId, reservedConcertId: concertId, status: "PENDING" }
+		});
+
+		if (isReserved) {
+			await queryRunner.rollbackTransaction();
+			res.status(409).json({ message: "User already has a pending reservation for this concert." });
+			return;
+		}
+
+		const isPurchased = await AppDataSource.getRepository(User).exists({
+			where: { userId, reservedConcertId: concertId, status: "COMPLETET" }
+		});
+
+		if( isPurchased) {
+			await queryRunner.rollbackTransaction();
+			res.status(409).json({ message: "User already purchased a ticket for this concert." });
+			return;
+		}
 		const ticketRepo = queryRunner.manager.getRepository(Ticket);
 		const userRepo = queryRunner.manager.getRepository(User);
 		const decrementResult = await ticketRepo
@@ -242,7 +265,6 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 			ticket: concert,
 			status: "COMPLETET",
 			isReserved: true,
-			reservationExpiresAt: null
 		});
 
 		const saved = await userRepo.save(purchase);

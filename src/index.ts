@@ -1,5 +1,5 @@
 import express, { type Request, type Response } from "express";
-import * as routes from "./routes.ts";
+import { router } from "./routes.ts";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -7,7 +7,6 @@ dotenv.config();
 const port = process.env.PORT || 3000;
 
 const app = express();
-const router = express.Router();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
