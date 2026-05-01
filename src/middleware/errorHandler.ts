@@ -9,17 +9,24 @@ const LOG_FILE = path.join(LOG_DIR, "errors.log");
 const ensureLogDir = () => {
   try {
     fs.mkdirSync(LOG_DIR, { recursive: true });
-  } catch (e) {
-
-  }
+  } catch (e) {}
 };
 
-export const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
-  const correlationId = (req as any).correlationId ?? req.header("x-correlation-id") ?? req.header("X-Correlation-ID");
-  const id = correlationId ?? `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+export const errorHandler = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+) => {
+  const correlationId =
+    (req as any).correlationId ??
+    req.header("x-correlation-id") ??
+    req.header("X-Correlation-ID");
+  const id =
+    correlationId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const timestamp = new Date().toISOString();
-  const stack = err instanceof Error ? err.stack ?? err.message : String(err);
+  const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
   const logEntry = `${timestamp} [${id}] ${stack}\n\n`;
 
   try {
@@ -35,11 +42,15 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
     const payload = {
       error: err.code ?? `ERR_${err.status}`,
       message: err.message ?? "Error",
-      ref: id
+      ref: id,
     };
     res.status(err.status).json(payload);
     return;
   }
 
-  res.status(500).json({ error: "INTERNAL_ERROR", message: "Internal Server Error", ref: id });
+  res.status(500).json({
+    error: "INTERNAL_ERROR",
+    message: "Internal Server Error",
+    ref: id,
+  });
 };

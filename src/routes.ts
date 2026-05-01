@@ -1,14 +1,15 @@
 import {getConcerts, getConcertByName, getConcertById, createReservation, createPurchase} from "./services.ts";
 import { Router } from "express";
 import { asyncWrap } from "./middleware/asyncWrap.ts";
-import { validateReservation } from "./middleware/validateReservation.ts";
+import { validate } from "./middleware/validate.ts";
+import { createPurchaseSchema, createReservationSchema } from "./schema.ts";
 
 const router = Router();
 
 router.get("/concerts", asyncWrap(getConcerts));
 router.get("/concerts/:id", asyncWrap(getConcertById));
 router.get("/concerts/name/:name", asyncWrap(getConcertByName));
-router.post("/reserve", validateReservation, asyncWrap(createReservation));
-router.post("/purchase", validateReservation, asyncWrap(createPurchase));
+router.post("/reserve", validate(createReservationSchema), asyncWrap(createReservation));
+router.post("/purchase", validate(createPurchaseSchema), asyncWrap(createPurchase));
 
 export { router };
