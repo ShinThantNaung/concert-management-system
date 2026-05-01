@@ -1,6 +1,8 @@
 import express, { type Request, type Response } from "express";
 import { router } from "./routes.ts";
 import dotenv from "dotenv";
+import { errorHandler } from "./middleware/errorHandler.ts";
+import { attachCorrelationId } from "./middleware/correlation.ts";
 
 dotenv.config();
 
@@ -10,7 +12,10 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(attachCorrelationId);
 app.use("/api", router);
+
+app.use(errorHandler);
 
 app.get("/", (req: Request, res: Response) => {
     res.send("API service is healthy and running!");

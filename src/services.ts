@@ -3,6 +3,7 @@ import { AppDataSource } from "./config.ts";
 import { Ticket } from "./entity/Ticket.ts";
 import { User } from "./entity/User.ts";
 import { In, LessThanOrEqual, MoreThan } from "typeorm";
+import { HttpError } from "./errors/HttpError.ts";
 
 let dataSourceInit: Promise<void> | null = null;
 
@@ -13,7 +14,6 @@ const ensureDataSource = async (): Promise<void> => {
 
 	if (!dataSourceInit) {
 		dataSourceInit = AppDataSource.initialize().then(async () => {
-			// Ensure pending migrations are applied so the runtime schema matches entities
 			await AppDataSource.runMigrations();
 			return undefined;
 		});
@@ -66,8 +66,7 @@ export const getConcertById = async (req: Request, res: Response): Promise<void>
 	const concertId = Number(req.params.id);
 
 	if (!Number.isFinite(concertId)) {
-		res.status(400).json({ message: "Invalid concert id." });
-		return;
+		throw new HttpError(400, "Invalid concert id.");
 	}
 
 	const concert = await AppDataSource.getRepository(Ticket).findOne({
@@ -75,8 +74,7 @@ export const getConcertById = async (req: Request, res: Response): Promise<void>
 	});
 
 	if (!concert) {
-		res.status(404).json({ message: "Concert not found." });
-		return;
+		throw new HttpError(404, "Concert not found.");
 	}
 
 	res.json(concert);
@@ -90,8 +88,7 @@ export const getConcertByName = async (req: Request, res: Response): Promise<voi
 		: rawName?.trim();
 
 	if (!concertName) {
-		res.status(400).json({ message: "Concert name is required." });
-		return;
+		throw new HttpError(400, "Concert name is required.");
 	}
 
 	const concert = await AppDataSource.getRepository(Ticket).findOne({
@@ -99,8 +96,7 @@ export const getConcertByName = async (req: Request, res: Response): Promise<voi
 	});
 
 	if (!concert) {
-		res.status(404).json({ message: "Concert not found." });
-		return;
+		throw new HttpError(404, "Concert not found.");
 	}
 
 	res.json(concert);
@@ -113,8 +109,7 @@ export const createReservation = async (req: Request, res: Response): Promise<vo
 	const concertId = Number(req.body?.concertId);
 
 	if (!Number.isFinite(userId) || !Number.isFinite(concertId)) {
-		res.status(400).json({ message: "userId and concertId are required." });
-		return;
+		throw new HttpError(400, "userId and concertId are required.");
 	}
 
 	const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -129,18 +124,16 @@ export const createReservation = async (req: Request, res: Response): Promise<vo
 
 		if (isReserved) {
 			await queryRunner.rollbackTransaction();
-			res.status(409).json({ message: "User already has a pending reservation for this concert." });
-			return;
+			throw new HttpError(409, "User already has a pending reservation for this concert.");
 		}
 
 		const isPurchased = await AppDataSource.getRepository(User).exists({
-			where: { userId, reservedConcertId: concertId, status: "COMPLETET" }
+			where: { userId, reservedConcertId: concertId, status: "COMPLETED" }
 		});
 
 		if( isPurchased) {
 			await queryRunner.rollbackTransaction();
-			res.status(409).json({ message: "User already purchased a ticket for this concert." });
-			return;
+			throw new HttpError(409, "User already purchased a ticket for this concert.");
 		}
 		const ticketRepo = queryRunner.manager.getRepository(Ticket);
 		const userRepo = queryRunner.manager.getRepository(User);
@@ -155,17 +148,13 @@ export const createReservation = async (req: Request, res: Response): Promise<vo
 		if (!decrementResult.affected) {
 			const exists = await ticketRepo.exists({ where: { concertId } });
 			await queryRunner.rollbackTransaction();
-			res.status(exists ? 409 : 404).json({
-				message: exists ? "Concert is sold out." : "Concert not found."
-			});
-			return;
+			throw new HttpError(exists ? 409 : 404, exists ? "Concert is sold out." : "Concert not found.");
 		}
 
 		const concert = await ticketRepo.findOne({ where: { concertId } });
 		if (!concert) {
 			await queryRunner.rollbackTransaction();
-			res.status(404).json({ message: "Concert not found." });
-			return;
+			throw new HttpError(404, "Concert not found.");
 		}
 
 		const reservation = userRepo.create({
@@ -182,7 +171,7 @@ export const createReservation = async (req: Request, res: Response): Promise<vo
 		res.status(201).json(saved);
 	} catch (error) {
 		await queryRunner.rollbackTransaction();
-		res.status(500).json({ message: "Failed to create reservation." });
+		throw error;
 	} finally {
 		await queryRunner.release();
 	}
@@ -195,8 +184,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 	const concertId = Number(req.body?.concertId);
 
 	if (!Number.isFinite(userId) || !Number.isFinite(concertId)) {
-		res.status(400).json({ message: "userId and concertId are required." });
-		return;
+		throw new HttpError(400, "userId and concertId are required.");
 	}
 
 	const now = new Date();
@@ -208,13 +196,12 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 		const userRepo = queryRunner.manager.getRepository(User);
 		const ticketRepo = queryRunner.manager.getRepository(Ticket);
 		const existingPurchase = await userRepo.findOne({
-			where: { userId, reservedConcertId: concertId, status: "COMPLETET" }
+			where: { userId, reservedConcertId: concertId, status: "COMPLETED" }
 		});
 
 		if (existingPurchase) {
 			await queryRunner.rollbackTransaction();
-			res.status(409).json({ message: "Purchase already completed." });
-			return;
+			throw new HttpError(409, "Purchase already completed.");
 		}
 		const reservation = await userRepo.findOne({
 			where: {
@@ -246,17 +233,13 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 		if (!decrementResult.affected) {
 			const exists = await ticketRepo.exists({ where: { concertId } });
 			await queryRunner.rollbackTransaction();
-			res.status(exists ? 409 : 404).json({
-				message: exists ? "Concert is sold out." : "Concert not found."
-			});
-			return;
+			throw new HttpError(exists ? 409 : 404, exists ? "Concert is sold out." : "Concert not found.");
 		}
 
 		const concert = await ticketRepo.findOne({ where: { concertId } });
 		if (!concert) {
 			await queryRunner.rollbackTransaction();
-			res.status(404).json({ message: "Concert not found." });
-			return;
+			throw new HttpError(404, "Concert not found.");
 		}
 
 		const purchase = userRepo.create({
@@ -272,7 +255,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 		res.status(201).json(saved);
 	} catch (error) {
 		await queryRunner.rollbackTransaction();
-		res.status(500).json({ message: "Failed to create purchase." });
+		throw error;
 	} finally {
 		await queryRunner.release();
 	}
