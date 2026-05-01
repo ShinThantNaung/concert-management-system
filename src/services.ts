@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import { AppDataSource } from "./config.js";
-import { Ticket } from "./entity/Ticket.js";
-import { User } from "./entity/User.js";
+import { AppDataSource } from "./config.ts";
+import { Ticket } from "./entity/Ticket.ts";
+import { User } from "./entity/User.ts";
 import { In, LessThanOrEqual, MoreThan } from "typeorm";
 
 let dataSourceInit: Promise<void> | null = null;

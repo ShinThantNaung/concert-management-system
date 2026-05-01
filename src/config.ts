@@ -1,8 +1,8 @@
 import path from "path";
 import dotenv from "dotenv";
 import { DataSource, type DataSourceOptions } from "typeorm";
-import { Ticket } from "./entity/Ticket.js";
-import { User } from "./entity/User.js";
+import { Ticket } from "./entity/Ticket.ts";
+import { User } from "./entity/User.ts";
 
 dotenv.config();
 

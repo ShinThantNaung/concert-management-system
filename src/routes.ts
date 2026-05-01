@@ -1,4 +1,4 @@
-import {getConcerts, getConcertByName, getConcertById,createReservation, createPurchase} from "./services.js"
+import {getConcerts, getConcertByName, getConcertById,createReservation, createPurchase} from "./services.ts"
 import { Router } from "express";
 
 const router = Router();
