@@ -1,9 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ZodAny } from "zod";
+import type { ZodType } from "zod";
 import { HttpError } from "../errors/HttpError.ts";
 
 export const validate =
-  <TSchema extends ZodAny>(schema: TSchema) =>
+  <TSchema extends ZodType>(schema: TSchema) =>
   (req: Request, _res: Response, next: NextFunction): void => {
     const parsed = schema.safeParse(req.body);
 

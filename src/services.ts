@@ -12,7 +12,6 @@ type ConcertResponseDTO = {
   concertId: number;
   concertName: string;
   stock: number;
-  category: "VIP" | "general";
 };
 
 type ReservationResponseDTO = {
@@ -28,7 +27,6 @@ const serializeConcert = (concert: Ticket): ConcertResponseDTO => ({
   concertId: concert.concertId,
   concertName: concert.concertName,
   stock: concert.stock,
-  category: concert.category,
 });
 
 const serializeReservation = (reservation: User): ReservationResponseDTO => ({

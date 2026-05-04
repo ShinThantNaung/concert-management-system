@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { DataSource, type DataSourceOptions } from "typeorm";
 import { Ticket } from "./entity/Ticket.ts";
 import { User } from "./entity/User.ts";
+import { createClient } from "redis";
 
 dotenv.config();
 
@@ -29,3 +30,4 @@ export const dataSourceOptions: DataSourceOptions = {
 };
 
 export const AppDataSource = new DataSource(dataSourceOptions);
+
