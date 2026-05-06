@@ -47,6 +47,7 @@ npm run dev
 ## Stress Test
 
 - The optimistic control worked. The first user received 201 and other user received 409 error with message "Concert is sold out".
+- Pessimistic concurrency control is not supported for sqlite
 
 ## Logs
 
