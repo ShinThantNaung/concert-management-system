@@ -4,6 +4,7 @@ import { DataSource, type DataSourceOptions } from "typeorm";
 import { Ticket } from "./entity/Ticket.ts";
 import { User } from "./entity/User.ts";
 import { createClient } from "redis";
+import swaggerJsdoc from "swagger-jsdoc";
 
 dotenv.config();
 
@@ -31,3 +32,15 @@ export const dataSourceOptions: DataSourceOptions = {
 
 export const AppDataSource = new DataSource(dataSourceOptions);
 
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Ticket API",
+      version: "1.0.0",
+    },
+  },
+  apis: ["./src/routes/*.ts"],
+};
+
+export const swaggerSpec = swaggerJsdoc(options);
