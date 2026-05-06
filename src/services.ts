@@ -134,7 +134,9 @@ export const getConcertByName = async (
   await ensureDataSource();
   const rawName = req.params.name;
   const nameDto: DTO.concertNameDTO = {
-    name: Array.isArray(rawName) ? rawName.join(" ").trim() : (rawName?.trim() ?? ""),
+    name: Array.isArray(rawName)
+      ? rawName.join(" ").trim()
+      : (rawName?.trim() ?? ""),
   };
   const concertName = nameDto.name;
 
@@ -237,6 +239,116 @@ export const createReservation = async (
         "Reservation conflict. Please retry your reservation request.",
       );
     }
+
+    const reservation = userRepo.create({
+      userId,
+      reservedConcertId: concertId,
+      ticket: concert,
+      status: "PENDING",
+      isReserved: true,
+      reservationExpiresAt: expiresAt,
+      quantity,
+    });
+
+    const saved = await userRepo.save(reservation);
+    await queryRunner.commitTransaction();
+    res.status(201).json(serializeReservation(saved));
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    if (!res.headersSent) {
+      if (error instanceof HttpError) {
+        res.status(error.status).json({
+          error: error.code ?? `ERR_${error.status}`,
+          message: error.message,
+        });
+      } else {
+        res
+          .status(500)
+          .json({ error: "INTERNAL_ERROR", message: "Internal Server Error" });
+      }
+      return;
+    }
+    throw error;
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+export const createReservationByP = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  await ensureDataSource();
+  await releaseExpiredReservations();
+  const payload = req.body as DTO.createReservationDTO;
+  const userId = Number(payload.userId);
+  const concertId = Number(payload.concertId);
+  const quantity = Number(payload.quantity ?? 1);
+
+  if (!Number.isFinite(userId) || !Number.isFinite(concertId)) {
+    throw new HttpError(400, "userId and concertId are required.");
+  }
+
+  if (
+    !Number.isFinite(quantity) ||
+    quantity < 1 ||
+    !Number.isInteger(quantity)
+  ) {
+    throw new HttpError(400, "quantity must be a positive integer.");
+  }
+
+  if (!quantity) {
+    throw new HttpError(400, "quantity must be at least 1.");
+  }
+
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  const queryRunner = AppDataSource.createQueryRunner();
+
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+  try {
+    const ticketRepo = queryRunner.manager.getRepository(Ticket);
+    const userRepo = queryRunner.manager.getRepository(User);
+
+    const existingPending = await userRepo.find({
+      where: { userId, reservedConcertId: concertId, status: "PENDING" },
+    });
+
+    if (existingPending.length > 0) {
+      throw new HttpError(
+        409,
+        "User already has a pending reservation for this concert.",
+      );
+    }
+
+    const existingCompleted = await userRepo.find({
+      where: { userId, reservedConcertId: concertId, status: "COMPLETED" },
+    });
+
+    if (existingCompleted.length > 0) {
+      throw new HttpError(
+        409,
+        "User already purchased a ticket for this concert.",
+      );
+    }
+
+    const concert = await ticketRepo
+      .createQueryBuilder("ticket")
+      .setLock("pessimistic_write")
+      .where("ticket.concertId = :concertId", { concertId })
+      .getOne();
+
+    if (!concert) {
+      throw new HttpError(404, "Concert not found.");
+    }
+
+    if (concert.stock < quantity) {
+      throw new HttpError(409, "Concert is sold out.");
+    }
+
+    concert.stock -= quantity;
+    concert.version += 1;
+    await ticketRepo.save(concert);
 
     const reservation = userRepo.create({
       userId,

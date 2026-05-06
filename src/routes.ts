@@ -1,4 +1,11 @@
-import {getConcerts, getConcertByName, getConcertById, createReservation, createPurchase} from "./services.ts";
+import {
+  getConcerts,
+  getConcertByName,
+  getConcertById,
+  createReservation,
+  createReservationByP,
+  createPurchase,
+} from "./services.ts";
 import { Router } from "express";
 import { asyncWrap } from "./middleware/asyncWrap.ts";
 import { validate } from "./middleware/validate.ts";
@@ -15,6 +22,12 @@ router.post(
   reserveLimiter,
   validate(createReservationSchema),
   asyncWrap(createReservation),
+);
+router.post(
+  "/reserve-p",
+  reserveLimiter,
+  validate(createReservationSchema),
+  asyncWrap(createReservationByP),
 );
 router.post(
   "/purchase",
