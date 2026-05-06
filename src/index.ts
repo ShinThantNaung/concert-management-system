@@ -8,6 +8,7 @@ import { connectRedis, redisClient } from "./redistClient.ts";
 import { AppDataSource } from "./config.ts";
 import { setupGracefulShutdown } from "./shutdown.ts";
 import swaggerUi from "swagger-ui-express";
+import { logger } from "./logger.ts";
 
 dotenv.config();
 
@@ -15,9 +16,20 @@ const port = process.env.PORT || 3000;
 
 const app = express();
 
+app.use(attachCorrelationId);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(attachCorrelationId);
+app.use((req, _res, next) => {
+  logger.info(
+    {
+      event: "request_received",
+      method: req.method,
+      path: req.originalUrl,
+    },
+    "Request received",
+  );
+  next();
+});
 app.use("/api", router);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(errorHandler);

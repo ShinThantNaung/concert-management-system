@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { HttpError } from "../errors/HttpError.ts";
 import fs from "fs";
 import path from "path";
+import { logger } from "../logger.ts";
 
 const LOG_DIR = path.join(process.cwd(), "logs");
 const LOG_FILE = path.join(LOG_DIR, "errors.log");
@@ -28,6 +29,17 @@ export const errorHandler = (
   const timestamp = new Date().toISOString();
   const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
   const logEntry = `${timestamp} [${id}] ${stack}\n\n`;
+
+  logger.error(
+    {
+      event: "global_error",
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      method: req.method,
+      path: req.originalUrl,
+    },
+    "Unhandled error",
+  );
 
   try {
     ensureLogDir();

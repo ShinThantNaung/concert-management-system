@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ZodType } from "zod";
 import { HttpError } from "../errors/HttpError.ts";
+import { logger } from "../logger.ts";
 
 export const validate =
   <TSchema extends ZodType>(schema: TSchema) =>
@@ -10,6 +11,15 @@ export const validate =
     if (!parsed.success) {
       const issues = parsed.error.issues.map((issue) => issue.message);
       const message = issues[0] ?? "Invalid request payload.";
+      logger.warn(
+        {
+          event: "validation_error",
+          issues,
+          method: req.method,
+          path: req.originalUrl,
+        },
+        "Validation error",
+      );
       next(new HttpError(400, message, "ERR_400"));
       return;
     }
