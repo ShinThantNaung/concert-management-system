@@ -3,7 +3,6 @@ import {
   getConcertByName,
   getConcertById,
   createReservation,
-  createReservationByP,
   createPurchase,
 } from "./services.ts";
 import { Router } from "express";
@@ -60,8 +59,94 @@ const router = Router();
  *           type: string
  */
 
+/**
+ * @swagger
+ * /api/concerts:
+ *   get:
+ *     summary: List all concerts
+ *     responses:
+ *       200:
+ *         description: List of concerts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   concertId:
+ *                     type: integer
+ *                   concertName:
+ *                     type: string
+ *                   stock:
+ *                     type: integer
+ */
 router.get("/concerts", asyncWrap(getConcerts));
+/**
+ * @swagger
+ * /api/concerts/{id}:
+ *   get:
+ *     summary: Get a concert by id
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Concert details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 concertId:
+ *                   type: integer
+ *                 concertName:
+ *                   type: string
+ *                 stock:
+ *                   type: integer
+ *       404:
+ *         description: Concert not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get("/concerts/:id", asyncWrap(getConcertById));
+/**
+ * @swagger
+ * /api/concerts/name/{name}:
+ *   get:
+ *     summary: Get a concert by name
+ *     parameters:
+ *       - in: path
+ *         name: name
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Concert details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 concertId:
+ *                   type: integer
+ *                 concertName:
+ *                   type: string
+ *                 stock:
+ *                   type: integer
+ *       404:
+ *         description: Concert not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get("/concerts/name/:name", asyncWrap(getConcertByName));
 /**
  * @swagger
@@ -96,9 +181,9 @@ router.post(
 );
 /**
  * @swagger
- * /api/reserve-p:
+ * /api/purchase:
  *   post:
- *     summary: Create a reservation (pessimistic lock)
+ *     summary: Purchase a reserved ticket
  *     requestBody:
  *       required: true
  *       content:
@@ -107,24 +192,18 @@ router.post(
  *             $ref: '#/components/schemas/CreateReservationRequest'
  *     responses:
  *       200:
- *         description: Reservation created
+ *         description: Purchase completed
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ReservationResponse'
  *       409:
- *         description: Reservation conflict
+ *         description: Purchase conflict
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post(
-  "/reserve-p",
-  reserveLimiter,
-  validate(createReservationSchema),
-  asyncWrap(createReservationByP),
-);
 router.post(
   "/purchase",
   reserveLimiter,
