@@ -60,3 +60,7 @@ npm run dev
 "event":"validation_error",
 "issues":["Invalid input: expected number, received NaN","Not a positive integer"],"method":"POST","path":"/api/reserve",
 "msg":"Validation error"}
+
+## Swagger documentation
+<img width="1882" height="889" alt="Screenshot 2026-05-06 213910" src="https://github.com/user-attachments/assets/c8822111-d948-4884-b1c8-b0a79dc6728a" />
+
