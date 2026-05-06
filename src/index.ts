@@ -4,7 +4,9 @@ import dotenv from "dotenv";
 import { errorHandler } from "./middleware/errorHandler.ts";
 import { attachCorrelationId } from "./middleware/correlation.ts";
 import { swaggerSpec } from "./config.ts";
-import { connectRedis } from "./redistClient.ts";
+import { connectRedis, redisClient } from "./redistClient.ts";
+import { AppDataSource } from "./config.ts";
+import { setupGracefulShutdown } from "./shutdown.ts";
 import swaggerUi from "swagger-ui-express";
 
 dotenv.config();
@@ -29,7 +31,6 @@ const startServer = async () => {
     if (!process.env.REDIS_URL) {
       throw new Error("REDIS_URL is not set");
     }
-
     await connectRedis();
     console.log("Redis client connected");
   } catch (error) {
@@ -37,8 +38,14 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
+  });
+
+  setupGracefulShutdown({
+    server,
+    dataSource: AppDataSource,
+    redisClient,
   });
 };
 
