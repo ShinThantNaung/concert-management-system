@@ -10,7 +10,17 @@ const router = Router();
 router.get("/concerts", asyncWrap(getConcerts));
 router.get("/concerts/:id", asyncWrap(getConcertById));
 router.get("/concerts/name/:name", asyncWrap(getConcertByName));
-router.post("/reserve", validate(createReservationSchema), asyncWrap(createReservation), reserveLimiter);
-router.post("/purchase", validate(createPurchaseSchema), asyncWrap(createPurchase), reserveLimiter);
+router.post(
+  "/reserve",
+  reserveLimiter,
+  validate(createReservationSchema),
+  asyncWrap(createReservation),
+);
+router.post(
+  "/purchase",
+  reserveLimiter,
+  validate(createPurchaseSchema),
+  asyncWrap(createPurchase),
+);
 
 export { router };

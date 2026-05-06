@@ -210,25 +210,32 @@ export const createReservation = async (
         "User already purchased a ticket for this concert.",
       );
     }
-    const decrementResult = await ticketRepo
-      .createQueryBuilder()
-      .update(Ticket)
-      .set({ stock: () => `"stock" - ${quantity}` })
-      .where("concertId = :concertId", { concertId })
-      .andWhere("stock >= :quantity", { quantity })
-      .execute();
-
-    if (!decrementResult.affected) {
-      const exists = await ticketRepo.exists({ where: { concertId } });
-      throw new HttpError(
-        exists ? 409 : 404,
-        exists ? "Concert is sold out." : "Concert not found.",
-      );
-    }
-
     const concert = await ticketRepo.findOne({ where: { concertId } });
     if (!concert) {
       throw new HttpError(404, "Concert not found.");
+    }
+
+    if (concert.stock < quantity) {
+      throw new HttpError(409, "Concert is sold out.");
+    }
+
+    const decrementResult = await ticketRepo
+      .createQueryBuilder()
+      .update(Ticket)
+      .set({
+        stock: () => `"stock" - ${quantity}`,
+        version: () => `"version" + 1`,
+      })
+      .where("concertId = :concertId", { concertId })
+      .andWhere("stock >= :quantity", { quantity })
+      .andWhere("version = :version", { version: concert.version })
+      .execute();
+
+    if (!decrementResult.affected) {
+      throw new HttpError(
+        409,
+        "Reservation conflict. Please retry your reservation request.",
+      );
     }
 
     const reservation = userRepo.create({

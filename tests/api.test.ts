@@ -15,12 +15,30 @@ import type { Ticket } from "../src/entity/Ticket.js";
 import type { User } from "../src/entity/User.js";
 import type { Request, Response } from "express";
 
+vi.mock("../src/rateLimiter.ts", async () => {
+  const rateLimit = (await import("express-rate-limit")).default;
+
+  return {
+    reserveLimiter: rateLimit({
+      windowMs: 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        error: "RATE_LIMIT_EXCEEDED",
+        message: "Too many reservation attempts. Try again later.",
+      },
+    }),
+  };
+});
+
 let app: express.Express;
 let dataSource: DataSource;
 let TicketEntity: typeof Ticket;
 let UserEntity: typeof User;
 let createReservation: (req: Request, res: Response) => Promise<void>;
 let createPurchase: (req: Request, res: Response) => Promise<void>;
+let resetRateLimitKey: (key: string) => void;
 
 const seedConcerts = async (): Promise<void> => {
   const ticketRepo = dataSource.getRepository(TicketEntity);
@@ -82,12 +100,19 @@ beforeAll(async () => {
     "services",
     () => import("../src/services.ts"),
   );
+  const limiterModule = await load(
+    "rateLimiter",
+    () => import("../src/rateLimiter.ts"),
+  );
 
   dataSource = configModule.AppDataSource;
   TicketEntity = ticketModule.Ticket;
   UserEntity = userModule.User;
   createReservation = servicesModule.createReservation;
   createPurchase = servicesModule.createPurchase;
+  resetRateLimitKey = limiterModule.reserveLimiter.resetKey.bind(
+    limiterModule.reserveLimiter,
+  );
 
   app = express();
   app.use(express.json());
@@ -108,7 +133,7 @@ beforeAll(async () => {
     console.error("Failed to synchronize test schema:", error);
     throw error;
   }
-});
+}, 60000);
 
 beforeEach(async () => {
   await dataSource.getRepository(UserEntity).clear();
@@ -118,6 +143,8 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  resetRateLimitKey("::ffff:127.0.0.1");
+  resetRateLimitKey("127.0.0.1");
 });
 
 afterAll(async () => {
@@ -153,6 +180,24 @@ describe("concert APIs", () => {
 });
 
 describe("reservation and purchase", () => {
+  it("POST /api/reserve returns 429 after 5 attempts from same client", async () => {
+    const concert = await getConcertByName("Rock Fest");
+    const payload = { userId: 101, concertId: concert.concertId };
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const response = await request(app).post("/api/reserve").send(payload);
+      expect(response.status).not.toBe(429);
+    }
+
+    const limitedResponse = await request(app).post("/api/reserve").send(payload);
+
+    expect(limitedResponse.status).toBe(429);
+    expect(limitedResponse.body).toEqual({
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Too many reservation attempts. Try again later.",
+    });
+  });
+
   it("POST /api/reserve decrements stock", async () => {
     const concert = await getConcertByName("Rock Fest");
     const response = await request(app)

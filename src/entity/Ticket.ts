@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, Index, VersionColumn } from "typeorm";
 
 @Entity("Ticket")
 export class Ticket {
@@ -14,5 +14,8 @@ export class Ticket {
 
     @Column({ type: "text", enum: ["VIP", "general"] })
     category!: "VIP" | "general";
+
+    @VersionColumn({ type: "integer" })
+    version!: number;
 
 }
