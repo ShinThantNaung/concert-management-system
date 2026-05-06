@@ -1,21 +1,24 @@
 # This is a concert ticket seller project build for practice
 
 ## Quick Start
+
 ```bash
 npm install
 npm run dev
 ```
 
 ## API Endpoints
-| Request | Description|
-| :------- | :------: |
-| GET /api/concerts     | Get Availabe Concerts   |
-| GET /api/concerts/:id     | Get Concert by Id     |
-| GET /api/concerts/name/:name | Get Concert by Name |
-| POST /api/reserve | Create a reservation with 5 mins TTL |
-| POST /api/purchase | Purchase the pending ticket or directly buy the ticket |
+
+| Request                      |                      Description                       |
+| :--------------------------- | :----------------------------------------------------: |
+| GET /api/concerts            |                 Get Availabe Concerts                  |
+| GET /api/concerts/:id        |                   Get Concert by Id                    |
+| GET /api/concerts/name/:name |                  Get Concert by Name                   |
+| POST /api/reserve            |          Create a reservation with 5 mins TTL          |
+| POST /api/purchase           | Purchase the pending ticket or directly buy the ticket |
 
 ## B-Tree Indexing vs Partial Indexing
+
 - It's found out that Partial Indexing is better at clean up job since it targets only the filtered column, making the cleanup of the pending entries more effectively.
 
 ## Explain Query Plan
@@ -28,12 +31,32 @@ npm run dev
 
 ## Choosing Indices
 
-- The B-tree indexing is chose for the concertId column since querying the whole column would be too unperformative and has the time complexity of O(n), which is reduced to O(log(n)) by using the indexing. 
+- The B-tree indexing is chose for the concertId column since querying the whole column would be too unperformative and has the time complexity of O(n), which is reduced to O(log(n)) by using the indexing.
 - The Partial indexing is chose for the status column since it's required only for the rows where status = "PENDING"
 
 ## AI aspect
+
 ### Benefits
+
 - AI helped me to write the template codes such as setting up api routes, config files and setting up the database connections in such a short time.
+
 ### Hinders
+
 - AI doesn't know the requirements and often applied the wrong logic or applied the logic to wrong functions or routes.
 
+## Stress Test
+
+- The optimistic control worked. The first user received 201 and other user received 409 error with message "Concert is sold out".
+
+## Logs
+
+### Logs for an error with negative concertId
+
+{"level":40,
+"time":"2026-05-06T14:36:46.483Z",
+"pid":11824,
+"hostname":"MSI",
+"correlationId":"7dd9f2ac-c1b1-44f4-81b0-608aecec23a4",
+"event":"validation_error",
+"issues":["Invalid input: expected number, received NaN","Not a positive integer"],"method":"POST","path":"/api/reserve",
+"msg":"Validation error"}
