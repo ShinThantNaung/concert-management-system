@@ -6,6 +6,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev --omit=optional \
     && npm cache clean --force
+RUN mkdir -p /app/logs
+RUN mkdir -p /app/logs && chmod 777 /app/logs
 
 COPY tsconfig.json ./
 COPY src ./src
