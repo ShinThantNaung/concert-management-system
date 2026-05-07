@@ -1,0 +1,31 @@
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+      DB_PATH: /data/database.sqlite
+    volumes:
+      - sqlite-data:/data
+    depends_on:
+      - redis
+    mem_limit: 256m
+    cpus: "0.5"
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - allkeys-lru
+    mem_limit: 128m
+    cpus: "0.25"
+volumes:
+  sqlite-data:
