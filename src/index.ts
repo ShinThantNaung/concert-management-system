@@ -35,7 +35,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(errorHandler);
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("API service is healthy and running!");
+  res.send("API service is healthy and running!!");
 });
 
 const startServer = async () => {
